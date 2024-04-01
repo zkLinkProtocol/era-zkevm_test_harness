@@ -8,6 +8,8 @@ use nmt_rs::{CelestiaNmt, NamespaceId, NamespaceMerkleHasher, NamespacedSha2Hash
 use sha2::{Digest, Sha256};
 
 const NAMESPACE_ID_LEN: usize = 28;
+const NAMESPACE_VERSION_LEN: usize = 1;
+const NAMESPACE_LEN: usize = NAMESPACE_ID_LEN + NAMESPACE_VERSION_LEN;
 const DATA_ARRAY_LEN: usize = 1139;
 const L2_TO_L1_MESSAGE_BYTE_LENGTH: usize = 88;
 const DATA_BYTES_LEN: usize = DATA_ARRAY_LEN * L2_TO_L1_MESSAGE_BYTE_LENGTH;
@@ -148,9 +150,7 @@ fn create_celestis_commitment_from_shares(shares: Vec<[u8; 512]>) -> [u8; 32] {
     let mut cursor = 0;
     for tree_size in tree_sizes.iter() {
         let mut leaf_set = vec![];
-        for j in cursor..cursor + tree_size {
-            leaf_set.push(shares[j])
-        }
+        (cursor..cursor + tree_size).for_each(|j| leaf_set.push(shares[j]));
         leaf_sets.push(leaf_set);
         cursor += tree_size;
     }
@@ -163,8 +163,7 @@ fn create_celestis_commitment_from_shares(shares: Vec<[u8; 512]>) -> [u8; 32] {
                 leaf[..NS_SIZE]
                     .try_into()
                     .expect("must succeed for correct size"),
-            )
-            .into();
+            );
             nmt.push_leaf(leaf, namespace_id).unwrap();
         }
         let nmt_root = nmt.root();
@@ -187,7 +186,7 @@ fn create_celestis_commitment_from_shares(shares: Vec<[u8; 512]>) -> [u8; 32] {
 fn round_up_power_of_two(x: usize) -> usize {
     let mut result = 1;
     while result < x {
-        result = result * 2
+        result *= 2
     }
     result
 }
@@ -243,13 +242,13 @@ fn share_namespace_id_unchecked(share: &[u8]) -> NamespaceId<NS_SIZE> {
 fn hash_from_byte_slice(items: &[&[u8]]) -> [u8; 32] {
     let len = items.len();
     match len {
-        0 => return empty_hash(),
-        1 => return leaf_hash(items[0]),
+        0 => empty_hash(),
+        1 => leaf_hash(items[0]),
         _ => {
             let k = get_split_point(len);
             let left = hash_from_byte_slice(&items[..k]);
             let right = hash_from_byte_slice(&items[k..]);
-            return inner_hash(&left, &right);
+            inner_hash(&left, &right)
         }
     }
 }
@@ -291,7 +290,7 @@ fn leaf_hash(leaf: &[u8]) -> [u8; 32] {
 
 // returns tmhash(<empty>)
 fn empty_hash() -> [u8; 32] {
-    let mut bytes = vec![];
+    let bytes = vec![];
     let digest = Sha256::digest(bytes);
     digest.into()
 }
