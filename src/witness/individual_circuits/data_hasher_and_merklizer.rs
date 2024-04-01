@@ -4,7 +4,24 @@ use crate::zkevm_circuits::base_structures::log_query::*;
 use crate::zkevm_circuits::linear_hasher::input::*;
 use circuit_definitions::encodings::*;
 use derivative::*;
+use nmt_rs::{CelestiaNmt, NamespaceId, NamespaceMerkleHasher, NamespacedSha2Hasher};
+use sha2::{Digest, Sha256};
 
+const NAMESPACE_ID_LEN: usize = 28;
+const DATA_ARRAY_LEN: usize = 1139;
+const L2_TO_L1_MESSAGE_BYTE_LENGTH: usize = 88;
+const DATA_BYTES_LEN: usize = DATA_ARRAY_LEN * L2_TO_L1_MESSAGE_BYTE_LENGTH;
+
+const NAMESPACE_VERSION: u8 = 0;
+const NAMESPACE_ID: [u8; NAMESPACE_ID_LEN] = [0; NAMESPACE_ID_LEN];
+const SHARE_VERSION: u8 = 0;
+
+const NS_SIZE: usize = 29;
+const SHARE_BYTE_LEN: usize = 512;
+
+// TODO: 把share算出来
+// 这里要返回[]share和commitment
+// 这里要实现一个rust版本的createCommitment方法
 pub fn compute_linear_keccak256<
     F: SmallField,
     R: BuildableCircuitRoundFunction<F, 8, 12, 4> + AlgebraicRoundFunction<F, 8, 12, 4>,
@@ -24,10 +41,16 @@ pub fn compute_linear_keccak256<
         full_bytestring.extend(serialized);
     }
 
-    let pubdata_hash: [u8; 32] = Keccak256::digest(&full_bytestring)
-        .as_slice()
-        .try_into()
-        .unwrap();
+    // data should have fixed length of 1139 * 88 (L2_TO_L1_MESSAGE_BYTE_LENGTH) byte.
+    for _ in 0..(DATA_ARRAY_LEN as u32 - simulator.num_items) {
+        full_bytestring.extend(vec![0u8; L2_TO_L1_MESSAGE_BYTE_LENGTH]);
+    }
+    let pubdata_hash = create_celestis_commitment(
+        NAMESPACE_VERSION,
+        &NAMESPACE_ID,
+        full_bytestring,
+        SHARE_VERSION,
+    );
 
     // in general we have everything ready, just form the witness
 
@@ -66,12 +89,6 @@ pub fn compute_linear_keccak256<
     vec![witness]
 }
 
-const NAMESPACE_ID_LEN: usize = 28;
-const DATA_ARRAY_LEN: usize = 1139;
-const DATA_BYTES_LEN: usize = DATA_ARRAY_LEN * L2_TO_L1_MESSAGE_BYTE_LENGTH;
-const SHARE_BYTE_LEN: usize = 512;
-const NS_SIZE: usize = 29;
-const L2_TO_L1_MESSAGE_BYTE_LENGTH: usize = 88;
 fn create_celestis_commitment(
     namespace_version: u8,
     namespace_id: &[u8],
@@ -251,12 +268,12 @@ fn get_split_point(len: usize) -> usize {
     k
 }
 
-const leaf_prefix: u8 = 0;
-const inner_prefix: u8 = 1;
+const LEAF_PREFIX: u8 = 0;
+const INNER_PREFIX: u8 = 1;
 // returns tmhash(0x01 || left || right)
 fn inner_hash(left: &[u8], right: &[u8]) -> [u8; 32] {
     let mut bytes = vec![];
-    bytes.push(inner_prefix);
+    bytes.push(INNER_PREFIX);
     bytes.extend(left);
     bytes.extend(right);
     let digest = Sha256::digest(bytes);
@@ -266,7 +283,7 @@ fn inner_hash(left: &[u8], right: &[u8]) -> [u8; 32] {
 // returns tmhash(0x00 || leaf)
 fn leaf_hash(leaf: &[u8]) -> [u8; 32] {
     let mut bytes = vec![];
-    bytes.push(leaf_prefix);
+    bytes.push(LEAF_PREFIX);
     bytes.extend(leaf);
     let digest = Sha256::digest(bytes);
     digest.into()
