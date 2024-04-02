@@ -21,9 +21,6 @@ const SHARE_VERSION: u8 = 0;
 const NS_SIZE: usize = 29;
 const SHARE_BYTE_LEN: usize = 512;
 
-// TODO: 把share算出来
-// 这里要返回[]share和commitment
-// 这里要实现一个rust版本的createCommitment方法
 pub fn compute_linear_keccak256<
     F: SmallField,
     R: BuildableCircuitRoundFunction<F, 8, 12, 4> + AlgebraicRoundFunction<F, 8, 12, 4>,
@@ -91,6 +88,8 @@ pub fn compute_linear_keccak256<
     vec![witness]
 }
 
+// Implementation of celestia blob commitment computation.
+// Official Golang implementation: https://github.com/celestiaorg/celestia-app/blob/915847191e80d836f862eea2664949d9a240abea/x/blob/types/payforblob.go#L219
 fn create_celestis_commitment(
     namespace_version: u8,
     namespace_id: &[u8],
@@ -119,7 +118,7 @@ fn create_celestis_shares(
     for (i, data) in normalized_data.chunks(data_size).enumerate() {
         // Build share
         // first share: namespace_version (1-byte) || namespace_id (28-byte) || info_byte (1-byte) || sequence_len (4-byte) || data || padding with 0s until 512 bytes
-        // first share: namespace_version (1-byte) || namespace_id (28-byte) || info_byte (1-byte) || data || padding with 0s until 512 bytes
+        // remaining shares: namespace_version (1-byte) || namespace_id (28-byte) || info_byte (1-byte) || data || padding with 0s until 512 bytes
         let mut share = vec![];
         share.push(namespace_version);
         share.extend(namespace_id);
@@ -320,7 +319,6 @@ mod tests {
                 "82e6cfce00453804379b53962939eaa7906b39904be0813fcadd31b100773c4b",
             ),
             (
-                // 			[][]byte{{1, 2}, {3, 4}, {5, 6}, {7, 8}, {9, 10}},
                 vec![
                     &[1, 2][..],
                     &[3, 4][..],
