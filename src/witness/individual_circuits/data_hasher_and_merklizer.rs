@@ -31,7 +31,7 @@ pub fn compute_linear_keccak256<
 ) -> Vec<LinearHasherCircuitInstanceWitness<F>> {
     // dbg!(&simulator.num_items);
     assert!(capacity <= u32::MAX as usize);
-    let mut full_bytestring = vec![];
+    let mut full_bytestring = Vec::with_capacity(DATA_ARRAY_LEN * L2_TO_L1_MESSAGE_BYTE_LENGTH);
 
     // only append meaningful items
     for (_, _, el) in simulator.witness.iter() {
@@ -158,11 +158,7 @@ fn create_celestis_commitment_from_shares(shares: Vec<[u8; 512]>) -> [u8; 32] {
     for set in leaf_sets.iter() {
         let mut nmt = CelestiaNmt::with_hasher(NamespacedSha2Hasher::with_ignore_max_ns(true));
         for leaf in set.iter() {
-            let namespace_id = NamespaceId(
-                leaf[..NS_SIZE]
-                    .try_into()
-                    .expect("must succeed for correct size"),
-            );
+            let namespace_id = leaf[..NS_SIZE].try_into().unwrap();
             nmt.push_leaf(leaf, namespace_id).unwrap();
         }
         let nmt_root = nmt.root();
@@ -182,23 +178,6 @@ fn create_celestis_commitment_from_shares(shares: Vec<[u8; 512]>) -> [u8; 32] {
     hash_from_byte_slice(&subtree_roots_slice)
 }
 
-fn round_up_power_of_two(x: usize) -> usize {
-    let mut result = 1;
-    while result < x {
-        result *= 2
-    }
-    result
-}
-
-fn round_down_power_of_two(x: usize) -> usize {
-    let round_up = round_up_power_of_two(x);
-    if round_up == x {
-        round_up
-    } else {
-        round_up / 2
-    }
-}
-
 fn subtree_width(share_count: usize, subtree_root_threshold: usize) -> usize {
     let mut s = share_count / subtree_root_threshold;
 
@@ -206,8 +185,8 @@ fn subtree_width(share_count: usize, subtree_root_threshold: usize) -> usize {
         s += 1;
     }
 
-    let x = round_up_power_of_two(s);
-    let y = round_up_power_of_two((share_count as f64).sqrt().ceil() as usize);
+    let x = s.next_power_of_two();
+    let y = ((share_count as f64).sqrt().ceil() as usize).next_power_of_two();
 
     std::cmp::min(x, y)
 }
@@ -219,21 +198,12 @@ fn merkle_mountain_range_sizes(total_size: usize, max_tree_size: usize) -> Vec<u
         let tree_size = if total_size >= max_tree_size {
             max_tree_size
         } else {
-            round_down_power_of_two(total_size)
+            total_size.next_power_of_two()
         };
         tree_sizes.push(tree_size);
         total_size -= tree_size;
     }
     tree_sizes
-}
-
-fn share_namespace_id_unchecked(share: &[u8]) -> NamespaceId<NS_SIZE> {
-    NamespaceId(
-        share[..NS_SIZE]
-            .try_into()
-            .expect("must succeed for correct size"),
-    )
-    .into()
 }
 
 // computes a Merkle tree where the leaves are the byte slice,
