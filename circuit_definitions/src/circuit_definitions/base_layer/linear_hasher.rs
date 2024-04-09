@@ -18,6 +18,9 @@ pub struct LinearHasherInstanceSynthesisFunction<
 use zkevm_circuits::linear_hasher::input::LinearHasherCircuitInstanceWitness;
 use zkevm_circuits::linear_hasher::linear_hasher_entry_point;
 
+pub type LinearHasherCircuit<F, R> =
+    ZkSyncUniformCircuitInstance<F, LinearHasherInstanceSynthesisFunction<F, R>>;
+
 impl<
         F: SmallField,
         R: BuildableCircuitRoundFunction<F, 8, 12, 4>
@@ -98,6 +101,10 @@ where
             GatePlacementStrategy::UseGeneralPurposeColumns,
             false,
         );
+        let builder = UIntXAddGate::<8>::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
 
         let builder =
             NopGate::configure_builder(builder, GatePlacementStrategy::UseGeneralPurposeColumns);
@@ -157,4 +164,43 @@ where
     ) -> [Num<F>; INPUT_OUTPUT_COMMITMENT_LENGTH] {
         linear_hasher_entry_point(cs, witness, round_function, config)
     }
+}
+
+pub fn synthesis<F, P, R, CR>(
+    circuit: LinearHasherCircuit<F, R>,
+    hint: &FinalizationHintsForProver,
+) -> CSReferenceAssembly<F, P, ProvingCSConfig>
+where
+    F: SmallField,
+    P: PrimeFieldLikeVectorized<Base = F>,
+    R: BuildableCircuitRoundFunction<F, 8, 12, 4>
+        + AlgebraicRoundFunction<F, 8, 12, 4>
+        + serde::Serialize
+        + serde::de::DeserializeOwned,
+    CR: CircuitResolver<
+        F,
+        zkevm_circuits::boojum::config::Resolver<
+            zkevm_circuits::boojum::config::DontPerformRuntimeAsserts,
+        >,
+    >,
+    usize: Into<<CR as CircuitResolver<F, <ProvingCSConfig as CSConfig>::ResolverConfig>>::Arg>,
+    [(); <LogQuery<F> as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN]:,
+    [(); <MemoryQuery<F> as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN]:,
+    [(); <DecommitQuery<F> as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN]:,
+    [(); <UInt256<F> as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN]:,
+    [(); <UInt256<F> as CSAllocatableExt<F>>::INTERNAL_STRUCT_LEN + 1]:,
+{
+    let geometry = circuit.geometry_proxy();
+    let (max_trace_len, num_vars) = circuit.size_hint();
+    let builder_impl = CsReferenceImplementationBuilder::<F, P, ProvingCSConfig, CR>::new(
+        geometry,
+        max_trace_len.unwrap(),
+    );
+    let cs_builder = new_builder::<_, F>(builder_impl);
+    let builder = circuit.configure_builder_proxy(cs_builder);
+    let mut cs = builder.build(num_vars.unwrap());
+    circuit.add_tables_proxy(&mut cs);
+    circuit.clone().synthesize_proxy(&mut cs);
+    cs.pad_and_shrink_using_hint(hint);
+    cs.into_assembly()
 }
