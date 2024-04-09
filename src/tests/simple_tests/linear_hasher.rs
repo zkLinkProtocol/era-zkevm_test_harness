@@ -64,7 +64,7 @@ fn test_linear_hasher() {
 
     let circuit = LinearHasherCircuit {
         witness: AtomicCell::new(Some(witness)),
-        config: Arc::new(10), // this value should less than DATA_ARRAY_LEN // L2_TO_L1_MESSAGE_BYTE_LENGTH
+        config: Arc::new(10),
         round_function: ZkSyncDefaultRoundFunction::default().into(),
         expected_public_input: None,
     };

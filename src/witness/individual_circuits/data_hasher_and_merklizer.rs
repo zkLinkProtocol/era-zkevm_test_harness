@@ -2,24 +2,10 @@ use super::*;
 use crate::sha3::*;
 use crate::zkevm_circuits::base_structures::log_query::*;
 use crate::zkevm_circuits::linear_hasher::input::*;
-use circuit_definitions::encodings::*;
+use circuit_definitions::{encodings::*, zkevm_circuits::linear_hasher::params::*};
 use derivative::*;
 use nmt_rs::{CelestiaNmt, NamespaceId, NamespaceMerkleHasher, NamespacedSha2Hasher};
 use sha2::{Digest, Sha256};
-
-const NAMESPACE_ID_LEN: usize = 28;
-const NAMESPACE_VERSION_LEN: usize = 1;
-const NAMESPACE_LEN: usize = NAMESPACE_ID_LEN + NAMESPACE_VERSION_LEN;
-const DATA_ARRAY_LEN: usize = 1139;
-const L2_TO_L1_MESSAGE_BYTE_LENGTH: usize = 88;
-const DATA_BYTES_LEN: usize = DATA_ARRAY_LEN * L2_TO_L1_MESSAGE_BYTE_LENGTH;
-
-const NAMESPACE_VERSION: u8 = 0;
-const NAMESPACE_ID: [u8; NAMESPACE_ID_LEN] = [0; NAMESPACE_ID_LEN];
-const SHARE_VERSION: u8 = 0;
-
-const NS_SIZE: usize = 29;
-const SHARE_BYTE_LEN: usize = 512;
 
 pub fn compute_linear_keccak256<
     F: SmallField,
@@ -31,7 +17,7 @@ pub fn compute_linear_keccak256<
 ) -> Vec<LinearHasherCircuitInstanceWitness<F>> {
     // dbg!(&simulator.num_items);
     assert!(capacity <= u32::MAX as usize);
-    let mut full_bytestring = Vec::with_capacity(DATA_ARRAY_LEN * L2_TO_L1_MESSAGE_BYTE_LENGTH);
+    let mut full_bytestring = Vec::with_capacity(DATA_BYTES_LEN);
 
     // only append meaningful items
     for (_, _, el) in simulator.witness.iter() {
@@ -41,9 +27,9 @@ pub fn compute_linear_keccak256<
     }
 
     // data should have fixed length of 1139 * 88 (L2_TO_L1_MESSAGE_BYTE_LENGTH) byte.
-    for _ in 0..(DATA_ARRAY_LEN as u32 - simulator.num_items) {
-        full_bytestring.extend(vec![0u8; L2_TO_L1_MESSAGE_BYTE_LENGTH]);
-    }
+    assert!(full_bytestring.len() <= DATA_BYTES_LEN);
+    full_bytestring.resize(DATA_BYTES_LEN, 0);
+
     let pubdata_hash = create_celestis_commitment(
         NAMESPACE_VERSION,
         &NAMESPACE_ID,
