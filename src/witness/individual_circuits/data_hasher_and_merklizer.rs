@@ -91,7 +91,7 @@ fn create_celestis_shares(
     namespace_id: &[u8],
     mut data: Vec<u8>,
     share_version: u8,
-) -> Vec<[u8; SHARE_BYTE_LEN]> {
+) -> Vec<[u8; SHARE_BYTES_LEN]> {
     // assert_eq!(namespace_id.len(), NAMESPACE_ID_LEN);
     // assert_eq!(data.len(), DATA_BYTES_LEN);
 
@@ -100,7 +100,7 @@ fn create_celestis_shares(
     normalized_data.append(&mut data);
 
     let mut shares = vec![];
-    let data_size = 512 - 1 - 28 - 1;
+    let data_size = SHARE_BYTES_LEN - NAMESPACE_VERSION_BYTES_LEN - NAMESPACE_ID_BYTES_LEN - 1;
     for (i, data) in normalized_data.chunks(data_size).enumerate() {
         // Build share
         // first share: namespace_version (1-byte) || namespace_id (28-byte) || info_byte (1-byte) || sequence_len (4-byte) || data || padding with 0s until 512 bytes
@@ -110,7 +110,7 @@ fn create_celestis_shares(
         share.extend(namespace_id);
         share.push(new_info_byte(share_version, i == 0));
         share.extend(data);
-        share.resize(SHARE_BYTE_LEN, 0);
+        share.resize(SHARE_BYTES_LEN, 0);
         shares.push(share.try_into().unwrap());
     }
     shares
@@ -125,7 +125,7 @@ fn new_info_byte(version: u8, is_first_share: bool) -> u8 {
     }
 }
 
-fn create_celestis_commitment_from_shares(shares: Vec<[u8; 512]>) -> [u8; 32] {
+fn create_celestis_commitment_from_shares(shares: Vec<[u8; SHARE_BYTES_LEN]>) -> [u8; 32] {
     const SUBTREE_ROOT_THRESHOLD: usize = 64;
     let shares_len = shares.len();
     let subtree_width = subtree_width(shares_len, SUBTREE_ROOT_THRESHOLD);
@@ -252,6 +252,8 @@ fn empty_hash() -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
+    use circuit_definitions::zkevm_circuits::linear_hasher::params::SHARE_BYTES_LEN;
+
     use super::{create_celestis_commitment, hash_from_byte_slice};
 
     #[test]
@@ -306,7 +308,7 @@ mod tests {
             assert_eq!(hex::encode(commitment), expected_commitment);
         }
         test(
-            vec![0xff; 3 * 512],
+            vec![0xff; 3 * SHARE_BYTES_LEN],
             0,
             "00000000000000000000000000000000000001010101010101010101",
             0,
