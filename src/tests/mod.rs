@@ -18,6 +18,7 @@ use crate::zk_evm::aux_structures::LogQuery;
 use crate::zk_evm::bytecode_to_code_hash;
 use crate::zk_evm::testing::storage::InMemoryStorage;
 use circuit_definitions::aux_definitions::witness_oracle::VmWitnessOracle;
+use circuit_definitions::circuit_definitions::base_layer::linear_hasher::LinearHasherCircuit;
 use circuit_definitions::circuit_definitions::base_layer::ZkSyncBaseLayerCircuit;
 use circuit_definitions::circuit_definitions::eip4844::EIP4844Circuit;
 use circuit_definitions::circuit_definitions::recursion_layer::ZkSyncRecursiveLayerCircuit;
@@ -125,6 +126,39 @@ pub(crate) fn eip4844_test_circuit(
     let _ = cs.pad_and_shrink();
     let mut cs = cs.into_assembly::<Global>();
 
+    let is_satisfied = cs.check_if_satisfied(&worker);
+    assert!(is_satisfied);
+}
+
+pub(crate) fn linear_hasher_test_circuit(
+    circuit: LinearHasherCircuit<GoldilocksField, ZkSyncDefaultRoundFunction>,
+) {
+    use crate::boojum::config::DevCSConfig;
+    use crate::boojum::cs::cs_builder::new_builder;
+    use crate::boojum::cs::cs_builder_reference::CsReferenceImplementationBuilder;
+
+    type P = GoldilocksField;
+    // type P = MixedGL;
+
+    let worker = Worker::new();
+
+    let geometry = circuit.geometry_proxy();
+    let (max_trace_len, num_vars) = circuit.size_hint();
+
+    let builder_impl = CsReferenceImplementationBuilder::<GoldilocksField, P, DevCSConfig>::new(
+        geometry,
+        max_trace_len.unwrap(),
+    );
+    let builder = new_builder::<_, GoldilocksField>(builder_impl);
+
+    let builder = circuit.configure_builder_proxy(builder);
+    let mut cs = builder.build(1 << 30);
+    circuit.add_tables_proxy(&mut cs);
+    circuit.synthesize_proxy(&mut cs);
+    let _ = cs.pad_and_shrink();
+    let mut cs = cs.into_assembly::<Global>();
+
+    cs.print_gate_stats();
     let is_satisfied = cs.check_if_satisfied(&worker);
     assert!(is_satisfied);
 }

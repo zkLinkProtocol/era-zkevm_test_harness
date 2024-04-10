@@ -18,6 +18,9 @@ pub struct LinearHasherInstanceSynthesisFunction<
 use zkevm_circuits::linear_hasher::input::LinearHasherCircuitInstanceWitness;
 use zkevm_circuits::linear_hasher::linear_hasher_entry_point;
 
+pub type LinearHasherCircuit<F, R> =
+    ZkSyncUniformCircuitInstance<F, LinearHasherInstanceSynthesisFunction<F, R>>;
+
 impl<
         F: SmallField,
         R: BuildableCircuitRoundFunction<F, 8, 12, 4>
