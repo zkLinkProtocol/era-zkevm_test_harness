@@ -133,6 +133,7 @@ pub(crate) fn eip4844_test_circuit(
 pub(crate) fn linear_hasher_test_circuit(
     circuit: LinearHasherCircuit<GoldilocksField, ZkSyncDefaultRoundFunction>,
 ) {
+    println!("Starting linear hasher test circuit");
     use crate::boojum::config::DevCSConfig;
     use crate::boojum::cs::cs_builder::new_builder;
     use crate::boojum::cs::cs_builder_reference::CsReferenceImplementationBuilder;
@@ -144,6 +145,8 @@ pub(crate) fn linear_hasher_test_circuit(
 
     let geometry = circuit.geometry_proxy();
     let (max_trace_len, num_vars) = circuit.size_hint();
+    println!("max_trace_len: {:?}", max_trace_len);
+    println!("num_vars: {:?}", num_vars);
 
     let builder_impl = CsReferenceImplementationBuilder::<GoldilocksField, P, DevCSConfig>::new(
         geometry,
@@ -152,12 +155,13 @@ pub(crate) fn linear_hasher_test_circuit(
     let builder = new_builder::<_, GoldilocksField>(builder_impl);
 
     let builder = circuit.configure_builder_proxy(builder);
-    let mut cs = builder.build(1 << 30);
+    let mut cs = builder.build(num_vars.unwrap());
     circuit.add_tables_proxy(&mut cs);
     circuit.synthesize_proxy(&mut cs);
     let _ = cs.pad_and_shrink();
     let mut cs = cs.into_assembly::<Global>();
 
+    cs.print_gate_stats();
     let is_satisfied = cs.check_if_satisfied(&worker);
     assert!(is_satisfied);
 }

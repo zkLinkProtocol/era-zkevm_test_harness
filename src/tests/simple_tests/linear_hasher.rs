@@ -14,6 +14,7 @@ use circuit_definitions::zkevm_circuits::linear_hasher::input::{
     LinearHasherCircuitInstanceWitness, LinearHasherInputData, LinearHasherInputDataWitness,
     LinearHasherInputOutputWitness, LinearHasherOutputData, LinearHasherOutputDataWitness,
 };
+use circuit_definitions::zkevm_circuits::linear_hasher::params::DATA_ARRAY_COUNT;
 use crossbeam::atomic::AtomicCell;
 use snark_wrapper::boojum::field::U64RawRepresentable;
 use snark_wrapper::boojum::gadgets::num::Num;
@@ -64,7 +65,7 @@ fn test_linear_hasher() {
 
     let circuit = LinearHasherCircuit {
         witness: AtomicCell::new(Some(witness)),
-        config: Arc::new(10),
+        config: Arc::new(DATA_ARRAY_COUNT),
         round_function: ZkSyncDefaultRoundFunction::default().into(),
         expected_public_input: None,
     };
