@@ -18,6 +18,9 @@ pub struct LinearHasherInstanceSynthesisFunction<
 use zkevm_circuits::linear_hasher::input::LinearHasherCircuitInstanceWitness;
 use zkevm_circuits::linear_hasher::linear_hasher_entry_point;
 
+pub type LinearHasherCircuit<F, R> =
+    ZkSyncUniformCircuitInstance<F, LinearHasherInstanceSynthesisFunction<F, R>>;
+
 impl<
         F: SmallField,
         R: BuildableCircuitRoundFunction<F, 8, 12, 4>
@@ -34,7 +37,7 @@ where
 {
     fn geometry() -> CSGeometry {
         CSGeometry {
-            num_columns_under_copy_permutation: 66,
+            num_columns_under_copy_permutation: 116,
             num_witness_columns: 0,
             num_constant_columns: 4,
             max_allowed_constraint_degree: 8,
@@ -43,8 +46,8 @@ where
 
     fn lookup_parameters() -> LookupParameters {
         LookupParameters::UseSpecializedColumnsWithTableIdAsConstant {
-            width: 3,
-            num_repetitions: 26,
+            width: 4,
+            num_repetitions: 9,
             share_table_id: true,
         }
     }
@@ -69,21 +72,11 @@ where
                 share_constants: false,
             },
         );
-
-        let builder = ZeroCheckGate::configure_builder(
-            builder,
-            GatePlacementStrategy::UseGeneralPurposeColumns,
-            false,
-        );
         let builder = FmaGateInBaseFieldWithoutConstant::configure_builder(
             builder,
             GatePlacementStrategy::UseGeneralPurposeColumns,
         );
-        let builder = UIntXAddGate::<32>::configure_builder(
-            builder,
-            GatePlacementStrategy::UseGeneralPurposeColumns,
-        );
-        let builder = UIntXAddGate::<16>::configure_builder(
+        let builder = ReductionGate::<F, 4>::configure_builder(
             builder,
             GatePlacementStrategy::UseGeneralPurposeColumns,
         );
@@ -99,10 +92,20 @@ where
             builder,
             GatePlacementStrategy::UseGeneralPurposeColumns,
         );
-        let builder = ReductionGate::<_, 4>::configure_builder(
+        let builder = UIntXAddGate::<32>::configure_builder(
             builder,
             GatePlacementStrategy::UseGeneralPurposeColumns,
         );
+        let builder = ZeroCheckGate::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+            false,
+        );
+        let builder = UIntXAddGate::<8>::configure_builder(
+            builder,
+            GatePlacementStrategy::UseGeneralPurposeColumns,
+        );
+
         let builder =
             NopGate::configure_builder(builder, GatePlacementStrategy::UseGeneralPurposeColumns);
 
@@ -137,20 +140,20 @@ where
     }
 
     fn add_tables<CS: ConstraintSystem<F>>(cs: &mut CS) {
-        let table = create_xor8_table();
-        cs.add_lookup_table::<Xor8Table, 3>(table);
+        let table = create_tri_xor_table();
+        cs.add_lookup_table::<TriXor4Table, 4>(table);
 
-        let table = create_and8_table();
-        cs.add_lookup_table::<And8Table, 3>(table);
+        let table = create_ch4_table();
+        cs.add_lookup_table::<Ch4Table, 4>(table);
 
-        let table = create_byte_split_table::<F, 1>();
-        cs.add_lookup_table::<ByteSplitTable<1>, 3>(table);
-        let table = create_byte_split_table::<F, 2>();
-        cs.add_lookup_table::<ByteSplitTable<2>, 3>(table);
-        let table = create_byte_split_table::<F, 3>();
-        cs.add_lookup_table::<ByteSplitTable<3>, 3>(table);
-        let table = create_byte_split_table::<F, 4>();
-        cs.add_lookup_table::<ByteSplitTable<4>, 3>(table);
+        let table = create_maj4_table();
+        cs.add_lookup_table::<Maj4Table, 4>(table);
+
+        let table = create_4bit_chunk_split_table::<F, 1>();
+        cs.add_lookup_table::<Split4BitChunkTable<1>, 4>(table);
+
+        let table = create_4bit_chunk_split_table::<F, 2>();
+        cs.add_lookup_table::<Split4BitChunkTable<2>, 4>(table);
     }
 
     fn synthesize_into_cs_inner<CS: ConstraintSystem<F>>(
