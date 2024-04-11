@@ -9,6 +9,7 @@ mod far_calls;
 mod fat_pointer_erasure;
 mod kernel_ops;
 mod limited_ergs;
+mod linear_hasher;
 mod log;
 mod memory_growth;
 mod near_call;
