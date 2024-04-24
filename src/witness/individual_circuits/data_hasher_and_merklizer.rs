@@ -30,7 +30,7 @@ pub fn compute_linear_keccak256<
     assert!(full_bytestring.len() <= DATA_BYTES_LEN);
     full_bytestring.resize(DATA_BYTES_LEN, 0);
 
-    let pubdata_hash = create_celestis_commitment(
+    let pubdata_hash = create_celestia_commitment(
         NAMESPACE_VERSION,
         &NAMESPACE_ID,
         full_bytestring,
@@ -76,17 +76,28 @@ pub fn compute_linear_keccak256<
 
 // Implementation of celestia blob commitment computation.
 // Official Golang implementation: https://github.com/celestiaorg/celestia-app/blob/915847191e80d836f862eea2664949d9a240abea/x/blob/types/payforblob.go#L219
-fn create_celestis_commitment(
+pub fn create_celestia_commitment_for_data(
+    data: Vec<u8>,
+) -> [u8; 32] {
+    create_celestia_commitment(
+        NAMESPACE_VERSION,
+        &NAMESPACE_ID,
+        data,
+        SHARE_VERSION
+    )
+}
+
+fn create_celestia_commitment(
     namespace_version: u8,
     namespace_id: &[u8],
     data: Vec<u8>,
     share_version: u8,
 ) -> [u8; 32] {
-    let shares = create_celestis_shares(namespace_version, namespace_id, data, share_version);
-    create_celestis_commitment_from_shares(shares)
+    let shares = create_celestia_shares(namespace_version, namespace_id, data, share_version);
+    create_celestia_commitment_from_shares(shares)
 }
 
-fn create_celestis_shares(
+fn create_celestia_shares(
     namespace_version: u8,
     namespace_id: &[u8],
     mut data: Vec<u8>,
@@ -125,7 +136,7 @@ fn new_info_byte(version: u8, is_first_share: bool) -> u8 {
     }
 }
 
-fn create_celestis_commitment_from_shares(shares: Vec<[u8; SHARE_BYTES_LEN]>) -> [u8; 32] {
+fn create_celestia_commitment_from_shares(shares: Vec<[u8; SHARE_BYTES_LEN]>) -> [u8; 32] {
     const SUBTREE_ROOT_THRESHOLD: usize = 64;
     let shares_len = shares.len();
     let subtree_width = subtree_width(shares_len, SUBTREE_ROOT_THRESHOLD);
@@ -254,7 +265,7 @@ fn empty_hash() -> [u8; 32] {
 mod tests {
     use circuit_definitions::zkevm_circuits::linear_hasher::params::SHARE_BYTES_LEN;
 
-    use super::{create_celestis_commitment, hash_from_byte_slice};
+    use super::{create_celestia_commitment, hash_from_byte_slice};
 
     #[test]
     fn test_hash_from_byte_slice() {
@@ -304,7 +315,7 @@ mod tests {
         ) {
             let namespace_id = hex::decode(namespace_id).unwrap();
             let commitment =
-                create_celestis_commitment(namespace_version, &namespace_id, blob, share_version);
+                create_celestia_commitment(namespace_version, &namespace_id, blob, share_version);
             assert_eq!(hex::encode(commitment), expected_commitment);
         }
         test(
