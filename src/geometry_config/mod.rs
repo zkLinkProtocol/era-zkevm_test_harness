@@ -15,6 +15,6 @@ pub const fn get_geometry_config() -> GeometryConfig {
         cycles_per_keccak256_circuit: 293,
         cycles_per_sha256_circuit: 2206,
         cycles_per_ecrecover_circuit: 7,
-        limit_for_l1_messages_pudata_hasher: 1139,
+        limit_for_l1_messages_pudata_hasher: 774,
     }
 }
