@@ -30,6 +30,7 @@ pub mod storage_sort_dedup;
 pub mod vm_main;
 // pub mod l1_messages_sort_dedup; // equal to one above
 pub mod linear_hasher;
+pub mod secp256r1_verify;
 
 pub use self::code_decommitter::CodeDecommitterInstanceSynthesisFunction;
 pub use self::ecrecover::ECRecoverFunctionInstanceSynthesisFunction;
