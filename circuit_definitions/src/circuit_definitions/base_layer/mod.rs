@@ -31,7 +31,6 @@ pub mod storage_sort_dedup;
 pub mod vm_main;
 // pub mod l1_messages_sort_dedup; // equal to one above
 pub mod linear_hasher;
-pub mod secp256r1_verify;
 
 pub use self::code_decommitter::CodeDecommitterInstanceSynthesisFunction;
 pub use self::ecrecover::ECRecoverFunctionInstanceSynthesisFunction;
@@ -77,7 +76,7 @@ pub type L1MessagesSorterCircuit<F, R> =
 pub type L1MessagesHasherCircuit<F, R> =
     ZkSyncUniformCircuitInstance<F, LinearHasherInstanceSynthesisFunction<F, R>>;
 pub type Secp256r1VerifyCircuit<F, R> =
-    ZkSyncUniformCircuitInstance<F, Secp256r1VerifyFunctionInstanceSynthesisFunction>;
+    ZkSyncUniformCircuitInstance<F, Secp256r1VerifyFunctionInstanceSynthesisFunction<F, R>>;
 
 #[derive(derivative::Derivative, serde::Serialize, serde::Deserialize)]
 #[derivative(Clone(bound = ""), Debug)]
