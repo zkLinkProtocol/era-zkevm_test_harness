@@ -121,6 +121,8 @@ pub struct BlockFirstAndLastBasicCircuits {
     >,
     pub l1_messages_hasher_circuits:
         FirstAndLastCircuit<LinearHasherInstanceSynthesisFunction<Field, RoundFunction>>,
+    pub secp256r1_verify_circuits:
+    FirstAndLastCircuit<Secp256r1VerifyFunctionInstanceSynthesisFunction>,
 }
 
 pub struct FirstAndLastCircuit<S>
@@ -294,6 +296,18 @@ impl<F: SmallField> ClosedFormInputField<F> for EventsDeduplicatorInstanceWitnes
     type T = EventsDeduplicatorFSMInputOutput<F>;
     type IN = EventsDeduplicatorInputData<F>;
     type OUT = EventsDeduplicatorOutputData<F>;
+
+    fn closed_form_input(
+        &mut self,
+    ) -> &mut ClosedFormInputWitness<F, Self::T, Self::IN, Self::OUT> {
+        &mut self.closed_form_input
+    }
+}
+
+impl<F: SmallField> ClosedFormInputField<F> for Secp256r1VerifyCircuitInstanceWitness<F> {
+    type T = Secp256r1VerifyCircuitFSMInputOutput<F>;
+    type IN = PrecompileFunctionInputData<F>;
+    type OUT = PrecompileFunctionOutputData<F>;
 
     fn closed_form_input(
         &mut self,

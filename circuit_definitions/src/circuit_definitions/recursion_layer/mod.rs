@@ -44,6 +44,7 @@ pub enum ZkSyncRecursiveLayerCircuit {
     LeafLayerCircuitForEventsSorter(ZkSyncLeafLayerRecursiveCircuit),
     LeafLayerCircuitForL1MessagesSorter(ZkSyncLeafLayerRecursiveCircuit),
     LeafLayerCircuitForL1MessagesHasher(ZkSyncLeafLayerRecursiveCircuit),
+    LeafLayerCircuitForSecp256r1Verify(ZkSyncLeafLayerRecursiveCircuit),
 }
 
 #[derive(derivative::Derivative, serde::Serialize, serde::Deserialize)]
@@ -66,6 +67,66 @@ pub enum ZkSyncRecursionLayerStorageType {
     LeafLayerCircuitForEventsSorter = 13,
     LeafLayerCircuitForL1MessagesSorter = 14,
     LeafLayerCircuitForL1MessagesHasher = 15,
+    LeafLayerCircuitForSecp256r1Verify = 17,
+}
+
+impl ZkSyncRecursionLayerStorageType {
+    pub fn as_iter_u8() -> impl Iterator<Item = u8> {
+        (ZkSyncRecursionLayerStorageType::SchedulerCircuit as u8
+            ..=ZkSyncRecursionLayerStorageType::NodeLayerCircuit as u8)
+            .chain(Self::leafs_as_iter_u8())
+    }
+
+    pub fn from_leaf_u8_to_basic_u8(value: u8) -> u8 {
+        match value {
+            a if a == Self::LeafLayerCircuitForMainVM as u8 => BaseLayerCircuitType::VM as u8,
+            a if a == Self::LeafLayerCircuitForCodeDecommittmentsSorter as u8 => {
+                BaseLayerCircuitType::DecommitmentsFilter as u8
+            }
+            a if a == Self::LeafLayerCircuitForCodeDecommitter as u8 => {
+                BaseLayerCircuitType::Decommiter as u8
+            }
+            a if a == Self::LeafLayerCircuitForLogDemuxer as u8 => {
+                BaseLayerCircuitType::LogDemultiplexer as u8
+            }
+            a if a == Self::LeafLayerCircuitForKeccakRoundFunction as u8 => {
+                BaseLayerCircuitType::KeccakPrecompile as u8
+            }
+            a if a == Self::LeafLayerCircuitForSha256RoundFunction as u8 => {
+                BaseLayerCircuitType::Sha256Precompile as u8
+            }
+            a if a == Self::LeafLayerCircuitForECRecover as u8 => {
+                BaseLayerCircuitType::EcrecoverPrecompile as u8
+            }
+            a if a == Self::LeafLayerCircuitForRAMPermutation as u8 => {
+                BaseLayerCircuitType::RamValidation as u8
+            }
+            a if a == Self::LeafLayerCircuitForStorageSorter as u8 => {
+                BaseLayerCircuitType::StorageFilter as u8
+            }
+            a if a == Self::LeafLayerCircuitForStorageApplication as u8 => {
+                BaseLayerCircuitType::StorageApplicator as u8
+            }
+            a if a == Self::LeafLayerCircuitForEventsSorter as u8 => {
+                BaseLayerCircuitType::EventsRevertsFilter as u8
+            }
+            a if a == Self::LeafLayerCircuitForL1MessagesSorter as u8 => {
+                BaseLayerCircuitType::L1MessagesRevertsFilter as u8
+            }
+            a if a == Self::LeafLayerCircuitForL1MessagesHasher as u8 => {
+                BaseLayerCircuitType::L1MessagesHasher as u8
+            }
+            a if a == Self::LeafLayerCircuitForSecp256r1Verify as u8 => {
+                BaseLayerCircuitType::Secp256r1Verify as u8
+            }
+            _ => {
+                panic!(
+                    "could not map recursive circuit type {} to a basic circuit",
+                    value
+                )
+            }
+        }
+    }
 }
 
 #[derive(derivative::Derivative, serde::Serialize, serde::Deserialize)]
@@ -90,6 +151,7 @@ pub enum ZkSyncRecursionLayerStorage<
     LeafLayerCircuitForEventsSorter(T) = 13,
     LeafLayerCircuitForL1MessagesSorter(T) = 14,
     LeafLayerCircuitForL1MessagesHasher(T) = 15,
+    LeafLayerCircuitForSecp256r1Verify(T) = 17,
 }
 
 impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned>
@@ -133,6 +195,9 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
             }
             ZkSyncRecursionLayerStorage::LeafLayerCircuitForL1MessagesHasher(..) => {
                 "Leaf for L1 messages hasher"
+            }
+            ZkSyncRecursionLayerStorage::LeafLayerCircuitForSecp256r1Verify(..) => {
+                "Leaf for Secp256r1 verify"
             }
         }
     }
@@ -184,6 +249,9 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
             ZkSyncRecursionLayerStorage::LeafLayerCircuitForL1MessagesHasher(..) => {
                 ZkSyncRecursionLayerStorageType::LeafLayerCircuitForL1MessagesHasher as u8
             }
+            ZkSyncRecursionLayerStorage::LeafLayerCircuitForSecp256r1Verify(..) => {
+                ZkSyncRecursionLayerStorageType::LeafLayerCircuitForSecp256r1Verify as u8
+            }
         }
     }
 
@@ -204,6 +272,7 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
             Self::LeafLayerCircuitForEventsSorter(inner) => inner,
             Self::LeafLayerCircuitForL1MessagesSorter(inner) => inner,
             Self::LeafLayerCircuitForL1MessagesHasher(inner) => inner,
+            Self::LeafLayerCircuitForSecp256r1Verify(inner) => inner,
         }
     }
 
@@ -269,6 +338,9 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
             {
                 Self::LeafLayerCircuitForL1MessagesHasher(inner)
             }
+            a if a == ZkSyncRecursionLayerStorageType::LeafLayerCircuitForSecp256r1Verify as u8 => {
+                Self::LeafLayerCircuitForSecp256r1Verify(inner)
+            }
             a @ _ => panic!("unknown numeric type {}", a),
         }
     }
@@ -301,6 +373,9 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
             }
             BaseLayerCircuitType::L1MessagesHasher => {
                 Self::LeafLayerCircuitForL1MessagesHasher(inner)
+            }
+            BaseLayerCircuitType::Secp256r1Verify => {
+                Self::LeafLayerCircuitForSecp256r1Verify(inner)
             }
             circuit_type => {
                 panic!("unknown base circuit type for leaf: {:?}", circuit_type);
@@ -366,6 +441,7 @@ impl ZkSyncRecursiveLayerCircuit {
             Self::LeafLayerCircuitForEventsSorter(..) => "Leaf for Events sorter",
             Self::LeafLayerCircuitForL1MessagesSorter(..) => "Leaf for L1 messages sorter",
             Self::LeafLayerCircuitForL1MessagesHasher(..) => "Leaf for L1 messages hasher",
+            Self::LeafLayerCircuitForSecp256r1Verify(..) => "Leaf for Secp256r1 verify",
         }
     }
 
@@ -412,6 +488,9 @@ impl ZkSyncRecursiveLayerCircuit {
             Self::LeafLayerCircuitForL1MessagesHasher(..) => {
                 ZkSyncRecursionLayerStorageType::LeafLayerCircuitForL1MessagesHasher as u8
             }
+            Self::LeafLayerCircuitForSecp256r1Verify(..) => {
+                ZkSyncRecursionLayerStorageType::LeafLayerCircuitForSecp256r1Verify as u8
+            }
         }
     }
 
@@ -431,7 +510,8 @@ impl ZkSyncRecursiveLayerCircuit {
             | Self::LeafLayerCircuitForStorageApplication(inner)
             | Self::LeafLayerCircuitForEventsSorter(inner)
             | Self::LeafLayerCircuitForL1MessagesSorter(inner)
-            | Self::LeafLayerCircuitForL1MessagesHasher(inner) => inner.size_hint(),
+            | Self::LeafLayerCircuitForL1MessagesHasher(inner)
+            | Self::LeafLayerCircuitForSecp256r1Verify(inner) => inner.size_hint()
         }
     }
 
@@ -451,7 +531,8 @@ impl ZkSyncRecursiveLayerCircuit {
             | Self::LeafLayerCircuitForStorageApplication(..)
             | Self::LeafLayerCircuitForEventsSorter(..)
             | Self::LeafLayerCircuitForL1MessagesSorter(..)
-            | Self::LeafLayerCircuitForL1MessagesHasher(..) => {
+            | Self::LeafLayerCircuitForL1MessagesHasher(..)
+            | Self::LeafLayerCircuitForSecp256r1Verify(..)  => {
                 ZkSyncLeafLayerRecursiveCircuit::geometry()
             }
         }
@@ -556,7 +637,8 @@ impl ZkSyncRecursiveLayerCircuit {
             | Self::LeafLayerCircuitForStorageApplication(inner)
             | Self::LeafLayerCircuitForEventsSorter(inner)
             | Self::LeafLayerCircuitForL1MessagesSorter(inner)
-            | Self::LeafLayerCircuitForL1MessagesHasher(inner) => {
+            | Self::LeafLayerCircuitForL1MessagesHasher(inner)
+            | Self::LeafLayerCircuitForSecp256r1Verify(inner) => {
                 Self::synthesis_inner::<_, CR>(inner, hint)
             }
         }
@@ -584,7 +666,8 @@ impl ZkSyncRecursiveLayerCircuit {
             | Self::LeafLayerCircuitForStorageApplication(..)
             | Self::LeafLayerCircuitForEventsSorter(..)
             | Self::LeafLayerCircuitForL1MessagesSorter(..)
-            | Self::LeafLayerCircuitForL1MessagesHasher(..) => {
+            | Self::LeafLayerCircuitForL1MessagesHasher(..)
+            | Self::LeafLayerCircuitForSecp256r1Verify(..) => {
                 ConcreteNodeLayerCircuitBuilder::dyn_verifier_builder::<EXT>()
             }
         }
@@ -613,7 +696,8 @@ impl ZkSyncRecursiveLayerCircuit {
             | Self::LeafLayerCircuitForStorageApplication(..)
             | Self::LeafLayerCircuitForEventsSorter(..)
             | Self::LeafLayerCircuitForL1MessagesSorter(..)
-            | Self::LeafLayerCircuitForL1MessagesHasher(..) => {
+            | Self::LeafLayerCircuitForL1MessagesHasher(..)
+            | Self::LeafLayerCircuitForSecp256r1Verify(..) => {
                 ConcreteNodeLayerCircuitBuilder::dyn_recursive_verifier_builder::<EXT, CS>()
             }
         }
@@ -650,6 +734,9 @@ impl ZkSyncRecursiveLayerCircuit {
             }
             BaseLayerCircuitType::L1MessagesHasher => {
                 Self::LeafLayerCircuitForL1MessagesHasher(inner)
+            }
+            BaseLayerCircuitType::Secp256r1Verify => {
+                Self::LeafLayerCircuitForSecp256r1Verify(inner)
             }
             circuit_type => {
                 panic!("unknown base circuit type for leaf: {:?}", circuit_type);
@@ -701,6 +788,9 @@ pub fn base_circuit_type_into_recursive_leaf_circuit_type(
         }
         BaseLayerCircuitType::L1MessagesHasher => {
             ZkSyncRecursionLayerStorageType::LeafLayerCircuitForL1MessagesHasher
+        }
+        BaseLayerCircuitType::Secp256r1Verify => {
+            ZkSyncRecursionLayerStorageType::LeafLayerCircuitForSecp256r1Verify
         }
     }
 }

@@ -147,6 +147,12 @@ fn get_all_basic_circuits(
             round_function: Arc::new(Poseidon2Goldilocks),
             expected_public_input: None,
         }),
+        ZkSyncBaseLayerCircuit::Secp256r1Verify(ZkSyncUniformCircuitInstance {
+            witness: AtomicCell::new(None),
+            config: Arc::new(geometry.cycles_per_secp256r1_verify_circuit as usize),
+            round_function: Arc::new(Poseidon2Goldilocks),
+            expected_public_input: None,
+        }),
     ]
 }
 
@@ -169,7 +175,7 @@ fn get_leaf_circuits(
     let mut result = vec![];
 
     for base_circuit_type in
-        (BaseLayerCircuitType::VM as u8)..=(BaseLayerCircuitType::L1MessagesHasher as u8)
+        (BaseLayerCircuitType::VM as u8)..=(BaseLayerCircuitType::Secp256r1Verify as u8)
     {
         let recursive_circuit_type = base_circuit_type_into_recursive_leaf_circuit_type(
             BaseLayerCircuitType::from_numeric_value(base_circuit_type),

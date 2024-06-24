@@ -34,6 +34,7 @@ fn all_runners() -> Vec<Box<dyn Fn() -> usize + Send>> {
         Box::new(storage_sorter_capacity),
         Box::new(storage_application_capacity),
         Box::new(l1_messages_hasher_capacity),
+        Box::new(secp256r1_verify_capacity),
     ]
 }
 
@@ -59,6 +60,7 @@ pub fn compute_config() -> GeometryConfig {
     let cycles_per_storage_sorter = sizes.pop().unwrap();
     let cycles_per_storage_application = sizes.pop().unwrap();
     let limit_for_l1_messages_pudata_hasher = sizes.pop().unwrap();
+    let cycles_per_secp256r1_verify_circuit = sizes.pop().unwrap();
 
     assert!(sizes.is_empty());
 
@@ -74,6 +76,7 @@ pub fn compute_config() -> GeometryConfig {
         cycles_per_keccak256_circuit,
         cycles_per_sha256_circuit,
         cycles_per_ecrecover_circuit,
+        cycles_per_secp256r1_verify_circuit,
         limit_for_l1_messages_pudata_hasher,
     };
     config
@@ -134,6 +137,10 @@ fn main() {
     function.line(format!(
         "    limit_for_l1_messages_pudata_hasher: {},",
         computed_config.limit_for_l1_messages_pudata_hasher
+    ));
+    function.line(format!(
+        "    cycles_per_secp256r1_verify_circuit: {},",
+        computed_config.cycles_per_secp256r1_verify_circuit
     ));
     function.line("}");
     println!("Generated config:\n {}", scope.to_string());

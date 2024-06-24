@@ -218,6 +218,7 @@ pub fn create_artifacts_from_tracer<
         keccak_round_function_witnesses,
         sha256_round_function_witnesses,
         ecrecover_witnesses,
+        secp256r1_verify_witnesses,
         monotonic_query_counter: _,
         callstack_with_aux_data,
         vm_snapshots,
@@ -262,6 +263,7 @@ pub fn create_artifacts_from_tracer<
     let mut demuxed_keccak_precompile_queries = vec![];
     let mut demuxed_sha256_precompile_queries = vec![];
     let mut demuxed_ecrecover_queries = vec![];
+    let mut demuxed_secp256r1_verify_queries = vec![];
 
     let mut original_log_queue_states = vec![];
     let mut chain_of_states = vec![];
@@ -493,6 +495,9 @@ pub fn create_artifacts_from_tracer<
                         }
                         a if a == *ECRECOVER_INNER_FUNCTION_PRECOMPILE_FORMAL_ADDRESS => {
                             demuxed_ecrecover_queries.push(query);
+                        }
+                        a if a == *SECP256R1_VERIFY_INNER_FUNCTION_PRECOMPILE_FORMAL_ADDRESS => {
+                            demuxed_secp256r1_verify_queries.push(query);
                         }
                         _ => {
                             // just burn ergs
@@ -878,6 +883,7 @@ pub fn create_artifacts_from_tracer<
         artifacts.keccak_round_function_witnesses = keccak_round_function_witnesses;
         artifacts.sha256_round_function_witnesses = sha256_round_function_witnesses;
         artifacts.ecrecover_witnesses = ecrecover_witnesses;
+        artifacts.secp256r1_verify_witnesses = secp256r1_verify_witnesses;
         artifacts.original_log_queue_simulator =
             original_log_queue_simulator.unwrap_or(LogQueueSimulator::empty());
         artifacts.original_log_queue_states = original_log_queue_states;
@@ -888,6 +894,7 @@ pub fn create_artifacts_from_tracer<
         artifacts.demuxed_keccak_precompile_queries = demuxed_keccak_precompile_queries;
         artifacts.demuxed_sha256_precompile_queries = demuxed_sha256_precompile_queries;
         artifacts.demuxed_ecrecover_queries = demuxed_ecrecover_queries;
+        artifacts.demuxed_secp256r1_verify_queries = demuxed_secp256r1_verify_queries;
 
         tracing::debug!("Processing artifacts queue");
 
@@ -1032,6 +1039,23 @@ pub fn create_artifacts_from_tracer<
             round_function,
         );
         this.ecrecover_circuits_data = ecrecover_circuits_data;
+
+        use crate::witness::individual_circuits::secp256r1_verify::secp256r1_verify_decompose_into_per_circuit_witness;
+
+        tracing::debug!("Running secp256r1_simulation simulation");
+
+        let demuxed_secp256r1_verify_queue = std::mem::replace(
+            &mut all_demuxed_queues[DemuxOutput::Secp256r1Verify as usize],
+            Default::default(),
+        );
+
+        let secp256r1_verify_circuits_data = secp256r1_verify_decompose_into_per_circuit_witness(
+            this,
+            demuxed_secp256r1_verify_queue,
+            geometry.cycles_per_secp256r1_verify_circuit as usize,
+            round_function,
+        );
+        this.secp256r1_verify_circuits_data = secp256r1_verify_circuits_data;
 
         // we are done with a memory and can do the processing and breaking of the logical arguments into individual circits
 
@@ -1491,6 +1515,7 @@ pub fn create_artifacts_from_tracer<
             sha256_circuits_data,
             ecrecover_circuits_data,
             l1_messages_linear_hash_data,
+            secp256r1_verify_circuits_data,
             ..
         } = artifacts;
 
@@ -1737,6 +1762,33 @@ pub fn create_artifacts_from_tracer<
             l1_messages_hasher_circuits_compact_forms_witnesses.clone(),
         );
 
+        // secp256r1 verify
+        let circuit_type = BaseLayerCircuitType::Secp256r1Verify;
+
+        let mut maker = CircuitMaker::new(
+            geometry.cycles_per_secp256r1_verify_circuit,
+            round_function.clone(),
+            &mut cs_for_witness_generation,
+            &mut cycles_used,
+        );
+
+        for circuit_input in secp256r1_verify_circuits_data.into_iter() {
+            circuit_callback(ZkSyncBaseLayerCircuit::Secp256r1Verify(
+                maker.process(circuit_input, circuit_type),
+            ));
+        }
+
+        let (
+            secp256r1_verify_circuits,
+            queue_simulator,
+            secp256r1_verify_circuits_compact_forms_witnesses,
+        ) = maker.into_results();
+        recursion_queue_callback(
+            circuit_type as u64,
+            queue_simulator,
+            secp256r1_verify_circuits_compact_forms_witnesses.clone(),
+        );
+
         // done!
 
         let basic_circuits = BlockFirstAndLastBasicCircuits {
@@ -1753,6 +1805,7 @@ pub fn create_artifacts_from_tracer<
             events_sorter_circuits,
             l1_messages_sorter_circuits,
             l1_messages_hasher_circuits,
+            secp256r1_verify_circuits,
         };
 
         let all_compact_forms = main_vm_circuits_compact_forms_witnesses
@@ -1769,6 +1822,7 @@ pub fn create_artifacts_from_tracer<
             .chain(events_sorter_circuits_compact_forms_witnesses)
             .chain(l1_messages_sorter_circuits_compact_forms_witnesses)
             .chain(l1_messages_hasher_circuits_compact_forms_witnesses)
+            .chain(secp256r1_verify_circuits_compact_forms_witnesses)
             .collect();
 
         (basic_circuits, all_compact_forms)

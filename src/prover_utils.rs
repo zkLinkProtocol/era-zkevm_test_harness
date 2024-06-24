@@ -184,6 +184,14 @@ pub fn create_base_layer_setup_data(
             let (_, finalization_hint) = cs.pad_and_shrink();
             (cs.into_assembly(), finalization_hint)
         }
+        ZkSyncBaseLayerCircuit::Secp256r1Verify(inner) => {
+            let builder = inner.configure_builder_proxy(builder);
+            let mut cs = builder.build(arg);
+            inner.add_tables_proxy(&mut cs);
+            inner.synthesize_proxy(&mut cs);
+            let (_, finalization_hint) = cs.pad_and_shrink();
+            (cs.into_assembly(), finalization_hint)
+        }
     };
 
     let (setup_base, setup, vk, setup_tree, vars_hint, witness_hints) =
@@ -341,6 +349,14 @@ pub fn prove_base_layer_circuit<POW: PoWRunner>(
             cs.pad_and_shrink_using_hint(finalization_hint);
             cs.into_assembly::<Global>()
         }
+        ZkSyncBaseLayerCircuit::Secp256r1Verify(inner) => {
+            let builder = inner.configure_builder_proxy(builder);
+            let mut cs = builder.build(arg);
+            inner.add_tables_proxy(&mut cs);
+            inner.synthesize_proxy(&mut cs);
+            cs.pad_and_shrink_using_hint(finalization_hint);
+            cs.into_assembly::<Global>()
+        }
     };
 
     cs.prove_from_precomputations::<EXT, TR, H, POW>(
@@ -455,7 +471,8 @@ pub fn create_recursive_layer_setup_data(
         | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForStorageApplication(inner)
         | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForEventsSorter(inner)
         | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForL1MessagesSorter(inner)
-        | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForL1MessagesHasher(inner) => {
+        | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForL1MessagesHasher(inner)
+        | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForSecp256r1Verify(inner) => {
             let builder = inner.configure_builder_proxy(builder);
             let mut cs = builder.build(arg);
             inner.add_tables(&mut cs);
@@ -536,7 +553,8 @@ pub fn prove_recursion_layer_circuit<POW: PoWRunner>(
         | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForStorageApplication(inner)
         | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForEventsSorter(inner)
         | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForL1MessagesSorter(inner)
-        | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForL1MessagesHasher(inner) => {
+        | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForL1MessagesHasher(inner)
+        | ZkSyncRecursiveLayerCircuit::LeafLayerCircuitForSecp256r1Verify(inner) => {
             let builder = inner.configure_builder_proxy(builder);
             let mut cs = builder.build(arg);
             inner.add_tables(&mut cs);

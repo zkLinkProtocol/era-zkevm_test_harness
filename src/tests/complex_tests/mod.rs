@@ -129,6 +129,7 @@ fn get_testing_geometry_config() -> GeometryConfig {
         cycles_per_log_demuxer: 16,
         cycles_per_storage_sorter: 16,
         cycles_per_events_or_l1_messages_sorter: 4,
+        cycles_per_secp256r1_verify_circuit: 2,
 
         limit_for_l1_messages_pudata_hasher: 32,
     }
@@ -429,7 +430,7 @@ fn run_and_try_create_witness_inner(
     println!("Computing leaf vks");
 
     for base_circuit_type in
-        (BaseLayerCircuitType::VM as u8)..=(BaseLayerCircuitType::L1MessagesHasher as u8)
+        (BaseLayerCircuitType::VM as u8)..=(BaseLayerCircuitType::Secp256r1Verify as u8)
     {
         let recursive_circuit_type = base_circuit_type_into_recursive_leaf_circuit_type(
             BaseLayerCircuitType::from_numeric_value(base_circuit_type),

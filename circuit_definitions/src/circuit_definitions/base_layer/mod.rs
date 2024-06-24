@@ -23,6 +23,7 @@ pub mod events_sort_dedup;
 pub mod keccak256_round_function;
 pub mod log_demux;
 pub mod ram_permutation;
+pub mod secp256r1_verify;
 pub mod sha256_round_function;
 pub mod sort_code_decommits;
 pub mod storage_apply;
@@ -39,6 +40,7 @@ pub use self::keccak256_round_function::Keccak256RoundFunctionInstanceSynthesisF
 pub use self::linear_hasher::LinearHasherInstanceSynthesisFunction;
 pub use self::log_demux::LogDemuxInstanceSynthesisFunction;
 pub use self::ram_permutation::RAMPermutationInstanceSynthesisFunction;
+pub use self::secp256r1_verify::Secp256r1VerifyFunctionInstanceSynthesisFunction;
 pub use self::sha256_round_function::Sha256RoundFunctionInstanceSynthesisFunction;
 pub use self::sort_code_decommits::CodeDecommittmentsSorterSynthesisFunction;
 pub use self::storage_apply::StorageApplicationInstanceSynthesisFunction;
@@ -74,6 +76,8 @@ pub type L1MessagesSorterCircuit<F, R> =
     ZkSyncUniformCircuitInstance<F, EventsAndL1MessagesSortAndDedupInstanceSynthesisFunction<F, R>>;
 pub type L1MessagesHasherCircuit<F, R> =
     ZkSyncUniformCircuitInstance<F, LinearHasherInstanceSynthesisFunction<F, R>>;
+pub type Secp256r1VerifyCircuit<F, R> =
+    ZkSyncUniformCircuitInstance<F, Secp256r1VerifyFunctionInstanceSynthesisFunction>;
 
 #[derive(derivative::Derivative, serde::Serialize, serde::Deserialize)]
 #[derivative(Clone(bound = ""), Debug)]
@@ -94,6 +98,7 @@ pub enum ZkSyncBaseLayerStorage<
     EventsSorter(T),
     L1MessagesSorter(T),
     L1MessagesHasher(T),
+    Secp256r1Verify(T),
 }
 
 impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned>
@@ -114,6 +119,7 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
             ZkSyncBaseLayerStorage::EventsSorter(..) => "Events sorter",
             ZkSyncBaseLayerStorage::L1MessagesSorter(..) => "L1 messages sorter",
             ZkSyncBaseLayerStorage::L1MessagesHasher(..) => "L1 messages rehasher",
+            ZkSyncBaseLayerStorage::Secp256r1Verify(..) => "Secp256r1 signature verifier",
         }
     }
 
@@ -150,6 +156,9 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
             ZkSyncBaseLayerStorage::L1MessagesHasher(..) => {
                 BaseLayerCircuitType::L1MessagesHasher as u8
             }
+            ZkSyncBaseLayerStorage::Secp256r1Verify(..) => {
+                BaseLayerCircuitType::Secp256r1Verify as u8
+            }
         }
     }
 
@@ -168,6 +177,7 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
             ZkSyncBaseLayerStorage::EventsSorter(inner) => inner,
             ZkSyncBaseLayerStorage::L1MessagesSorter(inner) => inner,
             ZkSyncBaseLayerStorage::L1MessagesHasher(inner) => inner,
+            ZkSyncBaseLayerStorage::Secp256r1Verify(inner) => inner,
         }
     }
 
@@ -198,6 +208,7 @@ impl<T: Clone + std::fmt::Debug + serde::Serialize + serde::de::DeserializeOwned
                 Self::L1MessagesSorter(inner)
             }
             a if a == BaseLayerCircuitType::L1MessagesHasher as u8 => Self::L1MessagesHasher(inner),
+            a if a == BaseLayerCircuitType::Secp256r1Verify as u8 => Self::Secp256r1Verify(inner),
             a @ _ => panic!("unknown numeric type {}", a),
         }
     }
@@ -235,6 +246,7 @@ pub enum ZkSyncBaseLayerCircuit<
     EventsSorter(EventsSorterCircuit<F, R>),
     L1MessagesSorter(L1MessagesSorterCircuit<F, R>),
     L1MessagesHasher(L1MessagesHasherCircuit<F, R>),
+    Secp256r1Verify(Secp256r1VerifyCircuit<F, R>),
 }
 
 impl<
@@ -269,6 +281,7 @@ where
             ZkSyncBaseLayerCircuit::EventsSorter(..) => "Events sorter",
             ZkSyncBaseLayerCircuit::L1MessagesSorter(..) => "L1 messages sorter",
             ZkSyncBaseLayerCircuit::L1MessagesHasher(..) => "L1 messages rehasher",
+            ZkSyncBaseLayerCircuit::Secp256r1Verify(..) => "Secp256r1 verify",
         }
     }
 
@@ -287,6 +300,7 @@ where
             ZkSyncBaseLayerCircuit::EventsSorter(inner) => inner.size_hint(),
             ZkSyncBaseLayerCircuit::L1MessagesSorter(inner) => inner.size_hint(),
             ZkSyncBaseLayerCircuit::L1MessagesHasher(inner) => inner.size_hint(),
+            ZkSyncBaseLayerCircuit::Secp256r1Verify(inner) => inner.size_hint(),
         }
     }
 
@@ -379,6 +393,9 @@ where
             ZkSyncBaseLayerCircuit::L1MessagesHasher(inner) => {
                 Self::synthesis_inner::<_, CR>(inner, hint)
             }
+            ZkSyncBaseLayerCircuit::Secp256r1Verify(inner) => {
+                Self::synthesis_inner::<_, CR>(inner, hint)
+            }
         }
     }
 
@@ -397,6 +414,7 @@ where
             ZkSyncBaseLayerCircuit::EventsSorter(inner) => inner.geometry_proxy(),
             ZkSyncBaseLayerCircuit::L1MessagesSorter(inner) => inner.geometry_proxy(),
             ZkSyncBaseLayerCircuit::L1MessagesHasher(inner) => inner.geometry_proxy(),
+            ZkSyncBaseLayerCircuit::Secp256r1Verify(inner) => inner.geometry_proxy(),
         }
     }
 
@@ -441,6 +459,9 @@ where
             ZkSyncBaseLayerCircuit::L1MessagesHasher(inner) => {
                 inner.debug_witness();
             }
+            ZkSyncBaseLayerCircuit::Secp256r1Verify(inner) => {
+                inner.debug_witness();
+            }
         };
 
         ()
@@ -478,6 +499,9 @@ where
             }
             ZkSyncBaseLayerCircuit::L1MessagesHasher(..) => {
                 BaseLayerCircuitType::L1MessagesHasher as u8
+            }
+            ZkSyncBaseLayerCircuit::Secp256r1Verify(..) => {
+                BaseLayerCircuitType::Secp256r1Verify as u8
             }
         }
     }

@@ -223,6 +223,12 @@ pub fn l1_messages_hasher_capacity() -> usize {
     compute_size_inner::<SF, _>(SF::geometry(), 20, Some(512), |x: usize| x)
 }
 
+pub fn secp256r1_verify_capacity() -> usize {
+    type SF = Secp256r1VerifyFunctionInstanceSynthesisFunction;
+
+    compute_size_inner::<SF, _>(SF::geometry(), 20, Some(2), |x: usize| x)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -258,6 +264,10 @@ mod test {
         println!(
             "Size of l1_messages_hasher_capacity: {}",
             l1_messages_hasher_capacity()
+        );
+        println!(
+            "Size of secp256r1_verify_capacity: {}",
+            secp256r1_verify_capacity()
         );
     }
 }
