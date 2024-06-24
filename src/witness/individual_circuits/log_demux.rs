@@ -15,6 +15,7 @@ use circuit_definitions::circuit_definitions::base_layer::{
 use circuit_definitions::encodings::recursion_request::RecursionQueueSimulator;
 use circuit_definitions::zkevm_circuits::scheduler::aux::BaseLayerCircuitType;
 use circuit_definitions::{encodings::*, Field, RoundFunction};
+use crate::zk_evm::zkevm_opcode_defs::SECP256R1_VERIFY_INNER_FUNCTION_PRECOMPILE_FORMAL_ADDRESS;
 
 /// Take a storage log, output logs separately for events, l1 messages, storage, etc
 pub fn compute_logs_demux<
@@ -32,6 +33,7 @@ pub fn compute_logs_demux<
 ) -> (
     FirstAndLastCircuit<LogDemuxInstanceSynthesisFunction<GoldilocksField, Poseidon2Goldilocks>>,
     Vec<ClosedFormInputCompactFormWitness<GoldilocksField>>,
+    LogQueue<Field>,
     LogQueue<Field>,
     LogQueue<Field>,
     LogQueue<Field>,
@@ -108,6 +110,7 @@ pub fn compute_logs_demux<
             Default::default(),
             Default::default(),
             Default::default(),
+            Default::default(),
         );
     }
 
@@ -147,6 +150,7 @@ pub fn compute_logs_demux<
     let mut demuxed_sha256_precompile_queries_it =
         artifacts.demuxed_sha256_precompile_queries.iter();
     let mut demuxed_ecrecover_queries_it = artifacts.demuxed_ecrecover_queries.iter();
+    let mut demuxed_secp256r1_verify_queries_it = artifacts.demuxed_secp256r1_verify_queries.iter();
 
     let mut input_passthrough_data = LogDemuxerInputData::placeholder_witness();
     // we only need the state of the original input
@@ -161,6 +165,7 @@ pub fn compute_logs_demux<
     let mut demuxed_keccak_precompile_queue = LogQueue::default();
     let mut demuxed_sha256_precompile_queue = LogQueue::default();
     let mut demuxed_ecrecover_queue = LogQueue::default();
+    let mut demuxed_secp256r1_verify_queue = LogQueue::default();
 
     let mut previous_hidden_fsm_output = None;
 
@@ -240,6 +245,14 @@ pub fn compute_logs_demux<
 
                             demuxed_ecrecover_queue.states.push(intermediate_info);
                         }
+                        a if a == *SECP256R1_VERIFY_INNER_FUNCTION_PRECOMPILE_FORMAL_ADDRESS => {
+                            let item = demuxed_secp256r1_verify_queries_it.next().copied().unwrap();
+                            let (_old_tail, intermediate_info) = demuxed_secp256r1_verify_queue
+                                .simulator
+                                .push_and_output_intermediate_data(item, round_function);
+
+                            demuxed_secp256r1_verify_queue.states.push(intermediate_info);
+                        }
                         _ => {
                             // just burn ergs
                         }
@@ -284,6 +297,8 @@ pub fn compute_logs_demux<
             take_queue_state_from_simulator(&demuxed_sha256_precompile_queue.simulator);
         fsm_output.ecrecover_access_queue_state =
             take_queue_state_from_simulator(&demuxed_ecrecover_queue.simulator);
+        fsm_output.secp256r1_access_queue_state =
+            take_queue_state_from_simulator(&demuxed_secp256r1_verify_queue.simulator);
 
         let mut witness = LogDemuxerCircuitInstanceWitness {
             closed_form_input: ClosedFormInputWitness {
@@ -335,6 +350,11 @@ pub fn compute_logs_demux<
                 .observable_output
                 .ecrecover_access_queue_state =
                 take_queue_state_from_simulator(&demuxed_ecrecover_queue.simulator);
+            witness
+                .closed_form_input
+                .observable_output
+                .secp256r1_access_queue_state =
+                take_queue_state_from_simulator(&demuxed_secp256r1_verify_queue.simulator);
         }
 
         if is_last {
@@ -384,5 +404,6 @@ pub fn compute_logs_demux<
         demuxed_keccak_precompile_queue,
         demuxed_sha256_precompile_queue,
         demuxed_ecrecover_queue,
+        demuxed_secp256r1_verify_queue,
     )
 }

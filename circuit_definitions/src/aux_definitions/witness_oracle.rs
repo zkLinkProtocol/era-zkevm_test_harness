@@ -490,11 +490,14 @@ impl<F: SmallField> WitnessOracle<F> for VmWitnessOracle<F> {
                 });
 
             assert_eq!(request.timestamp, query.timestamp.0);
+            let mut normalized_hash_buffer = [0u8; 32];
+            normalized_hash_buffer[4..].copy_from_slice(&query.normalized_preimage.0[..]);
+            let query_hash = U256::from_big_endian(&normalized_hash_buffer);
             assert!(
-                request.code_hash == query.hash,
+                request.code_hash == query_hash,
                 "circuit expected hash 0x{:064x}, while witness had 0x{:064x}",
                 request.code_hash,
-                query.hash
+                query_hash
             );
 
             query.memory_page.0

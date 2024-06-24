@@ -50,6 +50,7 @@ use crate::witness::full_block_artifact::FullBlockArtifacts;
 use crate::witness::oracle::VmInstanceWitness;
 use crate::zkevm_circuits::scheduler::block_header::BlockAuxilaryOutputWitness;
 use circuit_definitions::aux_definitions::witness_oracle::VmWitnessOracle;
+use circuit_definitions::zk_evm::zkevm_opcode_defs::VersionedHashLen32;
 
 /// Executes a given set of instructions, and returns things necessary to do the proving:
 /// - all circuits as a callback
@@ -73,6 +74,7 @@ pub fn run<
     initial_heap_content: Vec<u8>,   // bootloader starts with non-deterministic heap
     zk_porter_is_available: bool,
     default_aa_code_hash: U256,
+    evm_simulator_code_hash: U256,
     used_bytecodes: std::collections::HashMap<U256, Vec<[u8; 32]>>, // auxilary information to avoid passing a full set of all used codes
     ram_verification_queries: Vec<(u32, U256)>, // we may need to check that after the bootloader's memory is filled
     cycle_limit: usize,
@@ -118,28 +120,43 @@ pub fn run<
     let heap_writes = calldata_to_aligned_data(&initial_heap_content);
     let num_non_deterministic_heap_queries = heap_writes.len();
 
+    let (header, normalized_preimage) = crate::zk_evm::zkevm_opcode_defs::definitions::versioned_hash::ContractCodeSha256Format::normalize_for_decommitment(&bytecode_hash);
+
     // bootloader decommit query
     let entry_point_decommittment_query = DecommittmentQuery {
-        hash: entry_point_code_hash_as_u256,
+        header,
+        normalized_preimage,
         timestamp: Timestamp(SCHEDULER_TIMESTAMP),
         memory_page: MemoryPage(crate::zk_evm::zkevm_opcode_defs::BOOTLOADER_CODE_PAGE),
         decommitted_length: entry_point_code.len() as u16,
         is_fresh: true,
     };
 
-    let (entry_point_decommittment_query, entry_point_decommittment_query_witness) = tools
+    // manually decommit entry point
+    let prepared_entry_point_decommittment_query = tools
         .decommittment_processor
-        .decommit_into_memory(0, entry_point_decommittment_query, &mut tools.memory)
-        .expect("must decommit the extry point");
+        .prepare_to_decommit(0, entry_point_decommittment_query)
+        .expect("must prepare decommit of entry point");
+    tools
+        .witness_tracer
+        .prepare_for_decommittment(0, entry_point_decommittment_query);
+    let entry_point_decommittment_query_witness = tools
+        .decommittment_processor
+        .decommit_into_memory(
+            0,
+            prepared_entry_point_decommittment_query,
+            &mut tools.memory,
+        )
+        .expect("must execute decommit of entry point");
     let entry_point_decommittment_query_witness = entry_point_decommittment_query_witness.unwrap();
-    tools.witness_tracer.add_decommittment(
+    tools.witness_tracer.execute_decommittment(
         0,
         entry_point_decommittment_query,
         entry_point_decommittment_query_witness.clone(),
     );
 
     let block_properties =
-        create_out_of_circuit_global_context(zk_porter_is_available, default_aa_code_hash);
+        create_out_of_circuit_global_context(zk_porter_is_available, default_aa_code_hash, evm_simulator_code_hash);
 
     use crate::toolset::create_out_of_circuit_vm;
 
@@ -404,6 +421,14 @@ pub fn run<
                 .observable_output,
             ecrecover_observable_output: basic_circuits
                 .ecrecover_precompile_circuits
+                .last
+                .unwrap()
+                .clone_witness()
+                .unwrap()
+                .closed_form_input
+                .observable_output,
+            secp256r1_verify_observable_output: basic_circuits
+                .secp256r1_verify_circuits
                 .last
                 .unwrap()
                 .clone_witness()

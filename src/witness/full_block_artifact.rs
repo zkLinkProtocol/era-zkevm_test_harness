@@ -37,6 +37,8 @@ use derivative::Derivative;
 use rayon::slice::ParallelSliceMut;
 use std::cmp::Ordering;
 use tracing;
+use crate::zk_evm::zk_evm_abstractions::precompiles::secp256r1_verify::Secp256r1VerifyRoundWitness;
+use crate::zkevm_circuits::secp256r1_verify::Secp256r1VerifyCircuitInstanceWitness;
 
 #[derive(Derivative)]
 #[derivative(Clone, Default(bound = ""))]
@@ -62,6 +64,7 @@ pub struct FullBlockArtifacts<F: SmallField> {
     pub demuxed_keccak_precompile_queries: Vec<LogQuery>,
     pub demuxed_sha256_precompile_queries: Vec<LogQuery>,
     pub demuxed_ecrecover_queries: Vec<LogQuery>,
+    pub demuxed_secp256r1_verify_queries: Vec<LogQuery>,
 
     // deduplicated
     pub deduplicated_rollup_storage_queries: Vec<LogQuery>,
@@ -72,6 +75,7 @@ pub struct FullBlockArtifacts<F: SmallField> {
     pub keccak_round_function_witnesses: Vec<(u32, LogQuery, Vec<Keccak256RoundWitness>)>,
     pub sha256_round_function_witnesses: Vec<(u32, LogQuery, Vec<Sha256RoundWitness>)>,
     pub ecrecover_witnesses: Vec<(u32, LogQuery, ECRecoverRoundWitness)>,
+    pub secp256r1_verify_witnesses: Vec<(u32, LogQuery, Secp256r1VerifyRoundWitness)>,
 
     // processed code decommitter circuits, as well as sorting circuit
     pub code_decommitter_circuits_data: Vec<CodeDecommitterCircuitInstanceWitness<F>>,
@@ -87,6 +91,8 @@ pub struct FullBlockArtifacts<F: SmallField> {
     pub sha256_circuits_data: Vec<Sha256RoundFunctionCircuitInstanceWitness<F>>,
     //
     pub ecrecover_circuits_data: Vec<EcrecoverCircuitInstanceWitness<F>>,
+    //
+    pub secp256r1_verify_circuits_data: Vec<Secp256r1VerifyCircuitInstanceWitness<F>>,
     //
     pub l1_messages_linear_hash_data: Vec<LinearHasherCircuitInstanceWitness<F>>,
 }

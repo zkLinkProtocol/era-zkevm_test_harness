@@ -84,5 +84,6 @@ pub struct TestArtifact {
     pub entry_point_address: Address,
     pub entry_point_code: Vec<[u8; 32]>,
     pub default_account_code: Vec<[u8; 32]>,
+    pub evm_simulator_code: Vec<[u8; 32]>,
     pub predeployed_contracts: HashMap<Address, Vec<[u8; 32]>>,
 }

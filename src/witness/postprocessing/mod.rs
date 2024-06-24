@@ -83,6 +83,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use circuit_definitions::zkevm_circuits::secp256r1_verify::{Secp256r1VerifyCircuitFSMInputOutput, Secp256r1VerifyCircuitInstanceWitness};
 
 pub const L1_MESSAGES_MERKLIZER_OUTPUT_LINEAR_HASH: bool = false;
 
@@ -122,7 +123,7 @@ pub struct BlockFirstAndLastBasicCircuits {
     pub l1_messages_hasher_circuits:
         FirstAndLastCircuit<LinearHasherInstanceSynthesisFunction<Field, RoundFunction>>,
     pub secp256r1_verify_circuits:
-    FirstAndLastCircuit<Secp256r1VerifyFunctionInstanceSynthesisFunction>,
+    FirstAndLastCircuit<Secp256r1VerifyFunctionInstanceSynthesisFunction<Field, RoundFunction>>,
 }
 
 pub struct FirstAndLastCircuit<S>

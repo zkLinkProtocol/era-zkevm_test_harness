@@ -9,7 +9,7 @@ use crate::zkevm_circuits::base_structures::decommit_query::DecommitQueryWitness
 use crate::zkevm_circuits::base_structures::decommit_query::DECOMMIT_QUERY_PACKED_WIDTH;
 use crate::zkevm_circuits::code_unpacker_sha256::input::*;
 use crate::zkevm_circuits::code_unpacker_sha256::*;
-use circuit_definitions::encodings::decommittment_request::DecommittmentQueueSimulator;
+use circuit_definitions::encodings::decommittment_request::{DecommittmentQueueSimulator, normalized_preimage_as_u256};
 use circuit_definitions::encodings::decommittment_request::DecommittmentQueueState;
 use circuit_definitions::zk_evm::aux_structures::DecommittmentQuery;
 use rayon::prelude::*;
@@ -231,23 +231,24 @@ pub fn compute_decommitter_circuit_snapshots<
                 use crate::zk_evm::aux_structures::DecommittmentQuery;
 
                 let DecommittmentQuery {
-                    hash,
+                    header,
+                    normalized_preimage,
                     timestamp,
                     memory_page,
                     decommitted_length: _,
                     is_fresh,
                 } = wit.2;
 
-                let num_words = (hash.0[3] >> 32) as u16;
+                let num_words = u16::from_be_bytes([header.0[2], header.0[3]]);
                 assert!(num_words & 1 == 1); // should be odd
                 let num_words = num_words as u64;
                 let num_rounds = (num_words + 1) / 2;
 
                 let mut hash_as_be = [0u8; 32];
-                hash.to_big_endian(&mut hash_as_be);
+                let hash_as_u256 = normalized_preimage_as_u256(&normalized_preimage);
 
                 let as_circuit_data = DecommitQueryWitness {
-                    code_hash: hash,
+                    code_hash: hash_as_u256,
                     page: memory_page.0,
                     is_first: is_fresh,
                     timestamp: timestamp.0,

@@ -200,6 +200,7 @@ fn create_artifact(
         entry_point_code,
         default_account_code,
         predeployed_contracts,
+        evm_simulator_code: todo!(),
     }
 }
 

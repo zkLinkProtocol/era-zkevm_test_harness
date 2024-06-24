@@ -51,6 +51,7 @@ use crate::zk_evm::zkevm_opcode_defs::system_params::{
     ECRECOVER_INNER_FUNCTION_PRECOMPILE_FORMAL_ADDRESS,
     KECCAK256_ROUND_FUNCTION_PRECOMPILE_FORMAL_ADDRESS,
     SHA256_ROUND_FUNCTION_PRECOMPILE_FORMAL_ADDRESS,
+    SECP256R1_VERIFY_INNER_FUNCTION_PRECOMPILE_FORMAL_ADDRESS,
 };
 
 use crate::zk_evm::zkevm_opcode_defs::system_params::{
@@ -985,6 +986,7 @@ pub fn create_artifacts_from_tracer<
             demuxed_keccak_precompile_queue,
             demuxed_sha256_precompile_queue,
             demuxed_ecrecover_queue,
+            demuxed_secp256r1_verify_queue,
         ) = compute_logs_demux(
             this,
             geometry.cycles_per_log_demuxer as usize,
@@ -1043,11 +1045,6 @@ pub fn create_artifacts_from_tracer<
         use crate::witness::individual_circuits::secp256r1_verify::secp256r1_verify_decompose_into_per_circuit_witness;
 
         tracing::debug!("Running secp256r1_simulation simulation");
-
-        let demuxed_secp256r1_verify_queue = std::mem::replace(
-            &mut all_demuxed_queues[DemuxOutput::Secp256r1Verify as usize],
-            Default::default(),
-        );
 
         let secp256r1_verify_circuits_data = secp256r1_verify_decompose_into_per_circuit_witness(
             this,

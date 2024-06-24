@@ -40,6 +40,7 @@ pub fn create_tools<S: Storage>(storage: S, config: &GeometryConfig) -> ProvingT
 
 use crate::entry_point::initial_out_of_circuit_context;
 use crate::ethereum_types::Address;
+use crate::zk_evm::aux_structures::PubdataCost;
 use crate::zk_evm::block_properties::BlockProperties;
 use crate::zk_evm::reference_impls::memory::SimpleMemory;
 use crate::zk_evm::vm_state::{PrimitiveValue, VmState};
@@ -79,7 +80,7 @@ pub fn create_out_of_circuit_vm<S: Storage>(
 
     vm.push_bootloader_context(crate::INITIAL_MONOTONIC_CYCLE_COUNTER - 1, initial_context);
 
-    vm.local_state.current_ergs_per_pubdata_byte = 0; // uninitialized yet, but we do not care
+    vm.local_state.pubdata_revert_counter = PubdataCost(0i32);
     vm.local_state.timestamp = STARTING_TIMESTAMP;
     vm.local_state.memory_page_counter = STARTING_BASE_PAGE;
     vm.local_state.monotonic_cycle_counter = crate::INITIAL_MONOTONIC_CYCLE_COUNTER;

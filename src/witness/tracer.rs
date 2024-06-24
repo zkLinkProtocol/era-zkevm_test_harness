@@ -11,7 +11,6 @@ use crate::zk_evm::zk_evm_abstractions::precompiles::keccak256::Keccak256RoundWi
 use crate::zk_evm::zk_evm_abstractions::precompiles::sha256::Sha256RoundWitness;
 
 use crate::zk_evm::zkevm_opcode_defs::decoding::EncodingModeProduction;
-use crate::zk_evm::zkevm_opcode_defs::system_params::NUM_SPONGES;
 use crate::zk_evm::zkevm_opcode_defs::system_params::STORAGE_AUX_BYTE;
 use crate::zk_evm::zkevm_opcode_defs::system_params::VM_INITIAL_FRAME_ERGS;
 use crate::zk_evm::zkevm_opcode_defs::system_params::VM_MAX_STACK_DEPTH;
@@ -78,6 +77,7 @@ pub struct WitnessTracer {
     pub keccak_round_function_witnesses: Vec<(u32, LogQuery, Vec<Keccak256RoundWitness>)>,
     pub sha256_round_function_witnesses: Vec<(u32, LogQuery, Vec<Sha256RoundWitness>)>,
     pub ecrecover_witnesses: Vec<(u32, LogQuery, ECRecoverRoundWitness)>,
+    pub secp256r1_verify_witnesses: Vec<(u32, LogQuery, Secp256r1VerifyRoundWitness)>,
     pub monotonic_query_counter: usize,
     // pub log_frames_stack: Vec<ApplicationData<((usize, usize), (QueryMarker, u32, LogQuery))>>, // keep the unique frame index
     pub callstack_with_aux_data: CallstackWithAuxData,
@@ -138,6 +138,7 @@ impl WitnessTracer {
             keccak_round_function_witnesses: vec![],
             sha256_round_function_witnesses: vec![],
             ecrecover_witnesses: vec![],
+            secp256r1_verify_witnesses: vec![],
             monotonic_query_counter: 0,
             // log_frames_stack: vec![ApplicationData::empty()],
             callstack_with_aux_data: CallstackWithAuxData::empty(),
@@ -215,6 +216,7 @@ impl AuxCallstackProto {
 
 use crate::zk_evm::vm_state::VmLocalState;
 use crate::zk_evm::witness_trace::VmWitnessTracer;
+use crate::zk_evm::zk_evm_abstractions::precompiles::secp256r1_verify::Secp256r1VerifyRoundWitness;
 
 use super::vm_snapshot::VmSnapshot;
 
@@ -267,15 +269,6 @@ impl VmWitnessTracer<8, EncodingModeProduction> for WitnessTracer {
     }
 
     fn end_execution_cycle(&mut self, _current_state: &VmLocalState) {
-        // dbg!(&self.sponge_busy_range);
-        if !self.sponge_busy_range.is_empty() {
-            for i in 0..NUM_SPONGES {
-                self.sponge_busy_range.remove(&i);
-                if self.sponge_busy_range.remove(&(i + NUM_SPONGES)) {
-                    self.sponge_busy_range.insert(i);
-                }
-            }
-        }
         // println!("Cycle ends");
     }
 
@@ -284,16 +277,16 @@ impl VmWitnessTracer<8, EncodingModeProduction> for WitnessTracer {
             .push((monotonic_cycle_counter, memory_query));
     }
 
-    fn record_refund_for_query(
-        &mut self,
-        monotonic_cycle_counter: u32,
-        log_query: LogQuery,
-        refund: crate::zk_evm::abstractions::RefundType,
-    ) {
-        assert!(log_query.aux_byte == STORAGE_AUX_BYTE);
-        self.refunds_logs
-            .push((monotonic_cycle_counter, log_query, refund.pubdata_refund()));
-    }
+    // fn record_refund_for_query(
+    //     &mut self,
+    //     monotonic_cycle_counter: u32,
+    //     log_query: LogQuery,
+    //     refund: crate::zk_evm::abstractions::RefundType,
+    // ) {
+    //     assert!(log_query.aux_byte == STORAGE_AUX_BYTE);
+    //     self.refunds_logs
+    //         .push((monotonic_cycle_counter, log_query, refund.pubdata_refund()));
+    // }
 
     fn add_log_query(&mut self, monotonic_cycle_counter: u32, log_query: LogQuery) {
         // log both reads and writes
@@ -304,20 +297,6 @@ impl VmWitnessTracer<8, EncodingModeProduction> for WitnessTracer {
 
         self.callstack_with_aux_data
             .add_log_query(monotonic_cycle_counter, log_query);
-    }
-
-    fn add_decommittment(
-        &mut self,
-        monotonic_cycle_counter: u32,
-        decommittment_query: DecommittmentQuery,
-        mem_witness: Vec<U256>,
-    ) {
-        // this will literally form the queue of decommittment queries, one to one
-        self.decommittment_queries.push((
-            monotonic_cycle_counter,
-            decommittment_query,
-            mem_witness,
-        ));
     }
 
     fn add_precompile_call_result(
@@ -350,6 +329,14 @@ impl VmWitnessTracer<8, EncodingModeProduction> for WitnessTracer {
                     monotonic_cycle_counter,
                     call_params,
                     wit.drain(0..1).next().unwrap(),
+                ));
+            }
+            PrecompileCyclesWitness::Secp256r1Verify(mut wit) => {
+                assert_eq!(wit.len(), 1);
+                self.secp256r1_verify_witnesses.push((
+                    monotonic_cycle_counter,
+                    call_params,
+                    wit.drain(..).next().unwrap(),
                 ));
             }
         }
